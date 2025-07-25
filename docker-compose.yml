@@ -1,0 +1,243 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: zookeeper_kafka_fiap
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-net
+
+  broker:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: broker
+    container_name: broker_kafka_fiap
+    depends_on:
+      - zookeeper
+    ports:
+      - "9998:9998"
+      - "9999:9999"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9999,PLAINTEXT_HOST://localhost:9998
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - kafka-net
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    hostname: kafka-ui
+    container_name: kafka-ui_kafka_fiap
+    depends_on:
+      - broker
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local-kafka-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: broker:9999
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_JMX_PORT: 9991
+    networks:
+      - kafka-net
+
+  db-pedido-reciver:
+    image: mysql:8.0
+    container_name: db-pedido-reciver
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      MYSQL_DATABASE: pedido_reciver_db
+      MYSQL_USER: pedido_reciver_user
+      MYSQL_PASSWORD: secure_password_pedido_reciver
+      MYSQL_ROOT_PASSWORD: secure_root_password_pedido_reciver
+    ports:
+      - "3310:3306"
+    volumes:
+      - db_data_pedido_reciver:/var/lib/mysql
+    networks:
+      - pedido-net
+
+  db-pedido-processor:
+    image: mysql:8.0
+    container_name: db-pedido-processor
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      MYSQL_DATABASE: pedido_processor_db
+      MYSQL_USER: pedido_processor_user
+      MYSQL_PASSWORD: secure_password_pedido_processor
+      MYSQL_ROOT_PASSWORD: secure_root_password_pedido_processor
+    ports:
+      - "3311:3306"
+    volumes:
+      - db_data_pedido_processor:/var/lib/mysql
+    networks:
+      - pedido-net      
+
+  db-produto:
+    image: mysql:8.0
+    container_name: db-produto
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    environment:
+      MYSQL_DATABASE: produto_db
+      MYSQL_USER: produto_user
+      MYSQL_PASSWORD: secure_password_produto
+      MYSQL_ROOT_PASSWORD: secure_root_password_produto
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data_produto:/var/lib/mysql
+    networks:
+      - pedido-net
+
+  db-cliente:
+    image: mysql:8.0
+    container_name: db-cliente
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    environment:
+      MYSQL_DATABASE: cliente_db
+      MYSQL_USER: cliente_user
+      MYSQL_PASSWORD: secure_password_cliente
+      MYSQL_ROOT_PASSWORD: secure_root_password_cliente
+    ports:
+      - "3320:3306"
+    volumes:
+      - db_data_cliente:/var/lib/mysql
+    networks:
+      - pedido-net
+
+  db-estoque:
+    image: mysql:8.0
+    container_name: db-estoque
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: estoque_db
+      MYSQL_USER: estoque_user
+      MYSQL_PASSWORD: secure_password_estoque
+      MYSQL_ROOT_PASSWORD: secure_root_password_estoque
+    ports:
+      - "3309:3306"
+    volumes:
+      - db_data_estoque:/var/lib/mysql
+    networks:
+      - pedido-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  db-pagamento:
+    image: mysql:8.0
+    container_name: db-pagamento
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      MYSQL_DATABASE: pagamento_db
+      MYSQL_USER: pagamento_user
+      MYSQL_PASSWORD: secure_password_pagamento
+      MYSQL_ROOT_PASSWORD: secure_root_password_pagamento
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "3308:3306"
+    volumes:
+      - db_data_pagamento:/var/lib/mysql
+    networks:
+      - pedido-net
+
+  pagamento-api:
+    #build: .
+    image: vinihds/ms-pagamento:v0.0.1
+    container_name: pagamento-api-dev
+    depends_on:
+      db-pagamento:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-pagamento:3306/pagamento_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: pagamento_user
+      SPRING_DATASOURCE_PASSWORD: secure_password_pagamento
+    networks:
+      - pedido-net
+
+  cliente-api:
+    image: vinihds/ms-cliente:v0.0.1
+    container_name: cliente-api-dev
+    depends_on:
+      db-cliente:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-cliente:3306/cliente_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: cliente_user
+      SPRING_DATASOURCE_PASSWORD: secure_password_cliente
+    networks:
+      - pedido-net
+
+  produto-api:
+    image: vinihds/ms-produto:v0.0.1
+    container_name: ms-produto-api-dev
+    depends_on:
+      db-produto:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-produto:3306/produto_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: produto_user
+      SPRING_DATASOURCE_PASSWORD: secure_password_produto
+    networks:
+      - pedido-net      
+
+volumes:
+  db_data_pedido_reciver:
+  db_data_pedido_processor:
+  db_data_produto:
+  db_data_cliente:
+  db_data_estoque:
+  db_data_pagamento:
+
+networks:
+  kafka-net:
+    driver: bridge
+  pedido-net:
+    driver: bridge
