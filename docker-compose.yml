@@ -20,17 +20,18 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9998:9998"
-      - "9999:9999"
+      - "9092:9092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9999,PLAINTEXT_HOST://localhost:9998
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     networks:
       - kafka-net
 
@@ -44,9 +45,8 @@ services:
       - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local-kafka-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: broker:9999
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: broker:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-      KAFKA_CLUSTERS_0_JMX_PORT: 9991
     networks:
       - kafka-net
 
@@ -64,7 +64,7 @@ services:
       MYSQL_DATABASE: pedido_reciver_db
       MYSQL_USER: pedido_reciver_user
       MYSQL_PASSWORD: secure_password_pedido_reciver
-      MYSQL_ROOT_PASSWORD: secure_root_password_pedido_reciver
+      MYSQL_ROOT_PASSWORD: root_password
     ports:
       - "3310:3306"
     volumes:
@@ -92,18 +92,12 @@ services:
     volumes:
       - db_data_pedido_processor:/var/lib/mysql
     networks:
-      - pedido-net      
+      - pedido-net
 
   db-produto:
     image: mysql:8.0
     container_name: db-produto
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
     environment:
       MYSQL_DATABASE: produto_db
       MYSQL_USER: produto_user
@@ -113,6 +107,12 @@ services:
       - "3307:3306"
     volumes:
       - db_data_produto:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_produto"]
+      interval: 30s
+      timeout: 30s
+      retries: 10
+      start_period: 60s
     networks:
       - pedido-net
 
@@ -121,11 +121,11 @@ services:
     container_name: db-cliente
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_cliente"]
+      interval: 30s
+      timeout: 30s
+      retries: 10
+      start_period: 60s
     environment:
       MYSQL_DATABASE: cliente_db
       MYSQL_USER: cliente_user
@@ -154,10 +154,11 @@ services:
     networks:
       - pedido-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 10s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_estoque"]
+      interval: 30s
+      timeout: 30s
       retries: 10
+      start_period: 60s
 
   db-pagamento:
     image: mysql:8.0
@@ -183,9 +184,8 @@ services:
       - pedido-net
 
   pagamento-api:
-    #build: .
     image: vinihds/ms-pagamento:v0.0.1
-    container_name: pagamento-api-dev
+    container_name: ms-pagamento-api-dev
     depends_on:
       db-pagamento:
         condition: service_healthy
@@ -200,7 +200,7 @@ services:
 
   cliente-api:
     image: vinihds/ms-cliente:v0.0.1
-    container_name: cliente-api-dev
+    container_name: ms-cliente-api-dev
     depends_on:
       db-cliente:
         condition: service_healthy
@@ -226,7 +226,50 @@ services:
       SPRING_DATASOURCE_USERNAME: produto_user
       SPRING_DATASOURCE_PASSWORD: secure_password_produto
     networks:
-      - pedido-net      
+      - pedido-net
+
+  estoque-api:
+    image: vinihds/ms-estoque:v0.0.1
+    container_name: ms-estoque-api-dev
+    depends_on:
+      db-estoque:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-estoque:3306/estoque_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: estoque_user
+      SPRING_DATASOURCE_PASSWORD: secure_password_estoque
+    networks:
+      - pedido-net
+  pedido-reciver-api:
+    image: vinihds/ms-pedidoreciver:v0.0.3
+    container_name: ms-pedido-reciver-api
+    depends_on:
+      db-pedido-reciver:
+        condition: service_healthy
+      broker:
+        condition: service_started
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-pedido-reciver:3306/pedido_reciver_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: pedido_reciver_user
+      SPRING_DATASOURCE_PASSWORD: secure_password_pedido_reciver
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:9092
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.springframework.kafka.support.serializer.JsonSerializer
+      SPRING_KAFKA_PRODUCER_PROPERTIES_ENABLE_IDEMPOTENCE: true
+      SPRING_KAFKA_PRODUCER_ACKS: all
+      APP_KAFKA_TOPIC_NAME: topico-pedido-reciver
+      SPRING_KAFKA_CONSUMER_GROUP_ID: grupo-pedido-reciver
+      SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
+      SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.springframework.kafka.support.serializer.JsonDeserializer
+      SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TRUSTED_PACKAGES: "*"
+    networks:
+      - pedido-net
+      - kafka-net
 
 volumes:
   db_data_pedido_reciver:
