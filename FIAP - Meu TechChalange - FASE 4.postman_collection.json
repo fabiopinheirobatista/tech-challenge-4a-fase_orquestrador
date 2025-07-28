@@ -44,15 +44,15 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/clientes/166666",
+							"raw": "http://localhost:8084/clientes/1",
 							"protocol": "http",
 							"host": [
 								"localhost"
 							],
-							"port": "8081",
+							"port": "8084",
 							"path": [
 								"clientes",
-								"166666"
+								"1"
 							]
 						}
 					},
@@ -113,12 +113,12 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/clientes",
+							"raw": "http://localhost:8084/clientes",
 							"protocol": "http",
 							"host": [
 								"localhost"
 							],
-							"port": "8081",
+							"port": "8084",
 							"path": [
 								"clientes"
 							]
@@ -143,7 +143,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"nome\": \"Produto Teste\",\n    \"sku\": \"SKU12457\",\n    \"preco\": 99.90\n}"
+							"raw": "{\n    \"nome\": \"Produto Teste\",\n    \"sku\": \"SKU12470\",\n    \"preco\": 99.90\n}"
 						},
 						"url": {
 							"raw": "http://localhost:8081/produtos",
@@ -329,6 +329,44 @@
 					"response": []
 				},
 				{
+					"name": "Consulta Produto Estoque",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"sku\": \"SKU002\",\r\n    \"quantidade\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8085/estoque/consulta/SKU001",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8085",
+							"path": [
+								"estoque",
+								"consulta",
+								"SKU001"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Estorno",
 					"request": {
 						"method": "PUT",
@@ -442,7 +480,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"clienteId\": 1,\n    \"itens\": [\n        {\n            \"sku\": \"SKU001\",\n            \"quantidade\": 2\n        },{\n            \"sku\": \"SKU001\",\n            \"quantidade\": 5\n        }\n    ],\n    \"numeroCartao\": \"1234567890120001\"\n}",
+							"raw": "{\n    \"clienteId\": 1,\n    \"itens\": [\n        {\n            \"sku\": \"SKU001\",\n            \"quantidade\": 10\n        },{\n            \"sku\": \"SKU002\",\n            \"quantidade\": 20\n        }\n    ],\n    \"numeroCartao\": \"1234567890120001\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -466,20 +504,30 @@
 			]
 		},
 		{
-			"name": "New Request",
-			"request": {
-				"method": "GET",
-				"header": []
-			},
-			"response": []
-		},
-		{
-			"name": "New Request",
-			"request": {
-				"method": "GET",
-				"header": []
-			},
-			"response": []
+			"name": "Pedido Processor",
+			"item": [
+				{
+					"name": "Consulta",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8090/pagamento/consultar/1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8090",
+							"path": [
+								"pagamento",
+								"consultar",
+								"1"
+							]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }
