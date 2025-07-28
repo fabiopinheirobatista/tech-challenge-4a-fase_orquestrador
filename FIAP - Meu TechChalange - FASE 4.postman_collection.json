@@ -49,7 +49,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8081",
+							"port": "8084",
 							"path": [
 								"clientes",
 								"166666"
@@ -78,7 +78,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8081",
+							"port": "8084",
 							"path": [
 								"clientes",
 								"93"
@@ -98,7 +98,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8081",
+							"port": "8084",
 							"path": [
 								"clientes",
 								"7"
@@ -118,7 +118,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8081",
+							"port": "8084",
 							"path": [
 								"clientes"
 							]
@@ -170,7 +170,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8082",
+							"port": "8081",
 							"path": [
 								"produtos",
 								"211"
@@ -211,7 +211,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8082",
+							"port": "8081",
 							"path": [
 								"produtos",
 								"nome",
@@ -260,7 +260,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8082",
+							"port": "8081",
 							"path": [
 								"produtos",
 								"4"
@@ -280,7 +280,7 @@
 							"host": [
 								"localhost"
 							],
-							"port": "8082",
+							"port": "8081",
 							"path": [
 								"produtos",
 								"2"
