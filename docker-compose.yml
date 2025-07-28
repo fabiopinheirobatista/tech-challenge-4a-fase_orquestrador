@@ -11,7 +11,7 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     networks:
-      - kafka-net
+      - app-network
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 30s
@@ -44,7 +44,7 @@ services:
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_LOG_RETENTION_BYTES: 1073741824
     networks:
-      - kafka-net
+      - app-network
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
       interval: 10s
@@ -68,7 +68,7 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: broker:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     networks:
-      - kafka-net
+      - app-network
     restart: unless-stopped
 
   db-pedido-reciver:
@@ -85,7 +85,7 @@ services:
     volumes:
       - db_data_pedido_reciver:/var/lib/mysql
     networks:
-      - pedido-net
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
       interval: 30s
@@ -107,7 +107,7 @@ services:
     volumes:
       - db_data_pedido_processor:/var/lib/mysql
     networks:
-      - pedido-net
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_pedido_processor"]
       interval: 30s
@@ -129,7 +129,7 @@ services:
     volumes:
       - db_data_produto:/var/lib/mysql
     networks:
-      - pedido-net
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_produto"]
       interval: 30s
@@ -151,7 +151,7 @@ services:
     volumes:
       - db_data_cliente:/var/lib/mysql
     networks:
-      - pedido-net
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_cliente"]
       interval: 30s
@@ -173,7 +173,7 @@ services:
     volumes:
       - db_data_estoque:/var/lib/mysql
     networks:
-      - pedido-net
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_estoque"]
       interval: 30s
@@ -196,7 +196,7 @@ services:
     volumes:
       - db_data_pagamento:/var/lib/mysql
     networks:
-      - pedido-net
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-psecure_root_password_pagamento"]
       interval: 30s
@@ -220,15 +220,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: secure_password_pagamento
       SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
     networks:
-      - pedido-net
-      - kafka-net
+      - app-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   cliente-api:
     image: vinihds/ms-cliente:v0.0.1
@@ -246,15 +239,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: secure_password_cliente
       SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
     networks:
-      - pedido-net
-      - kafka-net
+      - app-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   produto-api:
     image: vinihds/ms-produto:v0.0.1
@@ -272,15 +258,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: secure_password_produto
       SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
     networks:
-      - pedido-net
-      - kafka-net
+      - app-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   estoque-api:
     image: vinihds/ms-estoque:v0.0.1
@@ -298,15 +277,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: secure_password_estoque
       SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
     networks:
-      - pedido-net
-      - kafka-net
+      - app-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   pedido-reciver-api:
     image: vinihds/ms-pedido-reciver:v0.0.4
@@ -322,16 +294,43 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://db-pedido-reciver:3306/pedido_reciver_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: pedido_reciver_user
       SPRING_DATASOURCE_PASSWORD: secure_password_pedido_reciver
-      SPRING_KAFKA_BOOTSTRAP-SERVERS: broker:29092
       SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
-      SPRING_KAFKA_PRODUCER_BOOTSTRAP-SERVERS: broker:29092
-      SPRING_KAFKA_CONSUMER_BOOTSTRAP-SERVERS: broker:29092
+      SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS: broker:29092
+      SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS: broker:29092
       APP_KAFKA_TOPIC_NAME: topico-pedido-reciver
     networks:
-      - pedido-net
-      - kafka-net
+      - app-network
     restart: unless-stopped
 
+  pedido-processor-api:
+    image: vinihds/ms-pedido-processor:v0.0.2
+    container_name: ms-pedido-processor-api-dev
+    depends_on:
+      broker:
+        condition: service_healthy
+      db-pedido-processor:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-pedido-processor:3306/pedido_processor_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: pedido_processor_user
+      SPRING_DATASOURCE_PASSWORD: secure_password_pedido_processor
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      SERVICES_CLIENTE: http://ms-cliente-api-dev:8084
+      SERVICES_PRODUTO: http://ms-produto-api-dev:8081
+      SERVICES_PAGAMENTO: http://ms-pagamento-api-dev:8083
+      SERVICES_ESTOQUE: http://ms-estoque-api-dev:8085
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8090/actuator/health || exit 1"]
+      interval: 45s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
 
 volumes:
   db_data_pedido_reciver:
@@ -342,7 +341,5 @@ volumes:
   db_data_pagamento:
 
 networks:
-  kafka-net:
-    driver: bridge
-  pedido-net:
+  app-network:
     driver: bridge
